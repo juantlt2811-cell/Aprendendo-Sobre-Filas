@@ -1,0 +1,26 @@
+# Build outputs - gerados a cada compilação, nunca devem ir pro Git
+[Bb]in/
+[Oo]bj/
+
+# Arquivos de configuração pessoal do Visual Studio (não são do projeto, são da sua instalação)
+.vs/
+*.user
+*.suo
+
+# Resultados de teste
+[Tt]est[Rr]esult*/
+
+# Publicação
+[Pp]ublish/
+
+# Arquivos de sistema operacional
+.DS_Store
+Thumbs.db
+
+# NuGet
+*.nupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+# Nota: NÃO precisamos ignorar appsettings.json aqui, porque a connection
+# string sensível está no User Secrets (fora do repositório), não nesse arquivo.

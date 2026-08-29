@@ -1,0 +1,6 @@
+@Projeto_Fila_de_Jobs_HostAddress = http://localhost:5231
+
+GET {{Projeto_Fila_de_Jobs_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
