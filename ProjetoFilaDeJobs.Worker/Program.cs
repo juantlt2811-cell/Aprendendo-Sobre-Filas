@@ -11,6 +11,7 @@ builder.Services.AddDbContext<WorkerDbContext>(options =>
 builder.Services.AddMassTransit(busConfigurator =>
 {
     busConfigurator.AddConsumer<PedidoCriadoConsumer>();
+    busConfigurator.AddConsumer<EstoqueConsumer>();
 
     busConfigurator.UsingRabbitMq((context, cfg) =>
     {
