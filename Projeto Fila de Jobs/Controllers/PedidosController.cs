@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ProjetoFilaDeJobs.Data;
 using ProjetoFilaDeJobs.DTOs;
-using ProjetoFilaDeJobs.Models;
+using ProjetoFilaDeJobs.Services;
 
 namespace ProjetoFilaDeJobs.Controllers;
 
@@ -10,76 +8,38 @@ namespace ProjetoFilaDeJobs.Controllers;
 [Route("api/[controller]")]
 public class PedidosController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    // O Controller agora só conhece a INTERFACE do Service - não sabe (e não
+    // precisa saber) que por trás existe um AppDbContext e um IPublishEndpoint.
+    // Essa é a ideia central de separar em camadas: cada uma só enxerga a
+    // camada imediatamente abaixo dela.
+    private readonly IPedidoService _pedidoService;
 
-    public PedidosController(AppDbContext context)
+    public PedidosController(IPedidoService pedidoService)
     {
-        _context = context;
+        _pedidoService = pedidoService;
     }
 
     [HttpPost]
     public async Task<IActionResult> CriarPedido([FromBody] CriarPedidoRequest request)
     {
-        var pedido = new Pedido
-        {
-            Id = Guid.NewGuid(),
-            ClienteNome = request.ClienteNome,
-            ClienteEmail = request.ClienteEmail,
-            Status = StatusPedido.Criado,
-            CriadoEm = DateTime.UtcNow,
-            Itens = request.Itens.Select(i => new ItemPedido
-            {
-                Id = Guid.NewGuid(),
-                ProdutoNome = i.ProdutoNome,
-                Quantidade = i.Quantidade,
-                PrecoUnitario = i.PrecoUnitario
-            }).ToList()
-        };
+        // O Controller não sabe COMO um pedido é criado (cálculo de total,
+        // persistência, publicação de evento) - ele só delega e traduz
+        // o resultado para uma resposta HTTP.
+        var response = await _pedidoService.CriarPedidoAsync(request);
 
-        pedido.ValorTotal = pedido.Itens.Sum(i => i.Quantidade * i.PrecoUnitario);
-
-        _context.Pedidos.Add(pedido);
-        await _context.SaveChangesAsync();
-
-        // Mapeamento manual: entidade (Pedido) -> DTO de resposta (PedidoResponse).
-        // É esse mapeamento que "quebra" o ciclo, porque o objeto que de fato
-        // vai para o serializador JSON não tem mais a referência de volta ItemPedido -> Pedido.
-        var response = MapParaResponse(pedido);
-
-        return CreatedAtAction(nameof(ObterPorId), new { id = pedido.Id }, response);
+        return CreatedAtAction(nameof(ObterPorId), new { id = response.Id }, response);
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> ObterPorId(Guid id)
     {
-        var pedido = await _context.Pedidos
-            .Include(p => p.Itens)
-            .FirstOrDefaultAsync(p => p.Id == id);
+        var response = await _pedidoService.ObterPorIdAsync(id);
 
-        if (pedido is null)
+        // Aqui é onde a "tradução" de null para 404 acontece - papel do
+        // Controller, não do Service, como comentado no PedidoService.
+        if (response is null)
             return NotFound();
 
-        return Ok(MapParaResponse(pedido));
-    }
-
-    // Método privado auxiliar para não repetir esse mapeamento em cada endpoint.
-    // Em projetos maiores, isso costuma virar uma classe separada (ex: PedidoMapper)
-    // ou usar uma biblioteca como AutoMapper - mas manual, explícito, já resolve bem aqui.
-    private static PedidoResponse MapParaResponse(Pedido pedido)
-    {
-        return new PedidoResponse(
-            pedido.Id,
-            pedido.ClienteNome,
-            pedido.ClienteEmail,
-            pedido.Status.ToString(), // enum vira string na resposta, mais legível pro consumidor da API
-            pedido.ValorTotal,
-            pedido.CriadoEm,
-            pedido.Itens.Select(i => new ItemPedidoResponse(
-                i.Id,
-                i.ProdutoNome,
-                i.Quantidade,
-                i.PrecoUnitario
-            )).ToList()
-        );
+        return Ok(response);
     }
 }

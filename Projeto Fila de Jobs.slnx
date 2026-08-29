@@ -1,3 +1,5 @@
 <Solution>
   <Project Path="Projeto Fila de Jobs/Projeto Fila de Jobs.csproj" />
+  <Project Path="ProjetoFilaDeJobs.Contracts/ProjetoFilaDeJobs.Contracts.csproj" />
+  <Project Path="ProjetoFilaDeJobs.Worker/ProjetoFilaDeJobs.Worker.csproj" />
 </Solution>
