@@ -1,11 +1,13 @@
 using MassTransit;
+using Microsoft.EntityFrameworkCore;
 using ProjetoFilaDeJobs.Worker.Consumers;
+using ProjetoFilaDeJobs.Worker.Data;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-// Registra o MassTransit, e desta vez também registramos o Consumer -
-// é essa linha (AddConsumer) que diz ao MassTransit "existe alguém
-// interessado em PedidoCriado, crie uma fila para ele".
+builder.Services.AddDbContext<WorkerDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 builder.Services.AddMassTransit(busConfigurator =>
 {
     busConfigurator.AddConsumer<PedidoCriadoConsumer>();
@@ -18,10 +20,14 @@ builder.Services.AddMassTransit(busConfigurator =>
             h.Password("admin123");
         });
 
-        // ConfigureEndpoints, com o Consumer já registrado acima, cria
-        // automaticamente uma fila com um nome baseado no Consumer
-        // (algo como "PedidoCriadoConsumer") e vincula ela ao exchange
-        // ProjetoFilaDeJobs.Events:PedidoCriado que a API já publica.
+        // Retry: se o Consumer lançar exceção, tenta de novo automaticamente.
+        // Precisa vir ANTES de ConfigureEndpoints, pois se aplica a tudo
+        // que for configurado depois dele.
+        cfg.UseMessageRetry(retryConfig =>
+        {
+            retryConfig.Interval(3, TimeSpan.FromSeconds(5));
+        });
+
         cfg.ConfigureEndpoints(context);
     });
 });

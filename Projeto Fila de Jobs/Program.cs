@@ -2,6 +2,7 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore; // necessário para o método UseNpgsql funcionar (extensão do pacote Npgsql)
 using ProjetoFilaDeJobs.Data; // necessário para o compilador enxergar a classe AppDbContext
 using ProjetoFilaDeJobs.Services;
+using ProjetoFilaDeJobs.Consumers; // novo using
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,20 +28,17 @@ builder.Services.AddOpenApi();
 // Registra o MassTransit no container de DI e configura o RabbitMQ como transporte.
 builder.Services.AddMassTransit(busConfigurator =>
 {
+    // NOVO: registra o Consumer - a API agora também escuta eventos, não só publica.
+    busConfigurator.AddConsumer<PagamentoProcessadoConsumer>();
+
     busConfigurator.UsingRabbitMq((context, cfg) =>
     {
-        // Host aponta para o container que subimos via docker-compose.
-        // "/" é o vhost padrão do RabbitMQ; admin/admin123 são as credenciais
-        // que definimos em RABBITMQ_DEFAULT_USER / RABBITMQ_DEFAULT_PASS.
         cfg.Host("localhost", "/", h =>
         {
             h.Username("admin");
             h.Password("admin123");
         });
 
-        // Configura automaticamente os endpoints com base nos Consumers
-        // registrados no container - ainda não temos nenhum Consumer,
-        // então por enquanto isso não tem efeito prático, mas já deixamos pronto.
         cfg.ConfigureEndpoints(context);
     });
 });
